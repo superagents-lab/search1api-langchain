@@ -1,23 +1,51 @@
-name: Publish to PyPI
+name: Release
 
 on:
   release:
     types: [published]
 
-permissions:
-  contents: read
-  id-token: write
-
 jobs:
-  publish:
+  build:
     runs-on: ubuntu-latest
-    environment: pypi
-
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - run: python -m pip install --upgrade build
+      - name: Verify release tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: >-
+          python -c "import os; from pathlib import Path;
+          version = next(line.split('=', 1)[1].strip().strip(chr(34))
+          for line in Path('pyproject.toml').read_text().splitlines()
+          if line.startswith('version = '));
+          assert os.environ['RELEASE_TAG'] == 'v' + version,
+          'Release tag must be v' + version"
+      - run: python -m pip install build twine
       - run: python -m build
+      - run: python -m twine check dist/*
+      - uses: actions/upload-artifact@v5
+        with:
+          name: python-package-distributions
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/search1api-langchain
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: python-package-distributions
+          path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
