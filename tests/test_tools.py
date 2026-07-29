@@ -137,9 +137,7 @@ def test_crawl_accepts_only_http_urls() -> None:
         Search1APICrawlInput(url="file:///etc/passwd")
 
     tool = Search1APICrawlTool(api_key="secret")
-    output = tool.invoke(
-        {"url": "https://example.com/page", "enable_fallback": True}
-    )
+    output = tool.invoke({"url": "https://example.com/page", "enable_fallback": True})
 
     assert json.loads(output)["results"]["content"] == "Example content"
     assert FakeSyncClient.instances[-1].calls[-1] == (
