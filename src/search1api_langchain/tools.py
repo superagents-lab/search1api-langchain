@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Literal
+from typing import Any
 
 from langchain_core.callbacks import (
     AsyncCallbackManagerForToolRun,
@@ -13,35 +13,7 @@ from langchain_core.callbacks import (
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, SecretStr, model_validator
 from search1api import AsyncSearch1API, Search1API
-
-SearchEngine = Literal[
-    "google",
-    "bing",
-    "duckduckgo",
-    "yahoo",
-    "youtube",
-    "x",
-    "reddit",
-    "github",
-    "arxiv",
-    "wechat",
-    "bilibili",
-    "imdb",
-    "wikipedia",
-    "sogou",
-    "baidu",
-    "360",
-    "quark",
-]
-NewsEngine = Literal[
-    "google",
-    "bing",
-    "duckduckgo",
-    "yahoo",
-    "hackernews",
-    "reuters",
-]
-TimeRange = Literal["day", "week", "month", "year"]
+from search1api.types import NewsEngine, SearchEngine, TimeRange
 
 
 class Search1APISearchInput(BaseModel):
@@ -59,6 +31,12 @@ class Search1APISearchInput(BaseModel):
         ge=1,
         le=50,
         description="Maximum number of ranked results to return.",
+    )
+    page: int | None = Field(
+        default=None,
+        ge=1,
+        le=100,
+        description="Optional results page for engines with native pagination.",
     )
     crawl_results: int = Field(
         default=0,
@@ -223,6 +201,7 @@ class Search1APISearchTool(_Search1APIBaseTool):
         query: str,
         search_service: SearchEngine | None = None,
         max_results: int = 5,
+        page: int | None = None,
         crawl_results: int = 0,
         image: bool = False,
         include_sites: list[str] | None = None,
@@ -237,6 +216,7 @@ class Search1APISearchTool(_Search1APIBaseTool):
                 query,
                 search_service=search_service,
                 max_results=max_results,
+                page=page,
                 crawl_results=crawl_results,
                 image=image,
                 include_sites=include_sites or [],
@@ -251,6 +231,7 @@ class Search1APISearchTool(_Search1APIBaseTool):
         query: str,
         search_service: SearchEngine | None = None,
         max_results: int = 5,
+        page: int | None = None,
         crawl_results: int = 0,
         image: bool = False,
         include_sites: list[str] | None = None,
@@ -265,6 +246,7 @@ class Search1APISearchTool(_Search1APIBaseTool):
                 query,
                 search_service=search_service,
                 max_results=max_results,
+                page=page,
                 crawl_results=crawl_results,
                 image=image,
                 include_sites=include_sites or [],
@@ -376,3 +358,41 @@ class Search1APICrawlTool(_Search1APIBaseTool):
                 enable_fallback=enable_fallback,
             )
         return _json_content(response)
+
+
+class Search1APIAskInput(BaseModel):
+    """Natural-language request; routing and result limits are server-owned."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    query: str = Field(min_length=1, max_length=500)
+
+
+class Search1APIAskTool(_Search1APIBaseTool):
+    """Route and rank a natural-language search request with Search1API."""
+
+    name: str = "search1api_ask"
+    description: str = (
+        "Describe what to find in natural language. Search1API chooses the engines "
+        "and time window and returns results ranked by relevance. Costs 5 credits. "
+        "Use search when you already know the engine and keywords."
+    )
+    args_schema: type[BaseModel] = Search1APIAskInput
+    timeout: float = Field(default=45.0, gt=0, exclude=True, repr=False)
+
+    def _run(
+        self,
+        query: str,
+        run_manager: CallbackManagerForToolRun | None = None,
+    ) -> str:
+        del run_manager
+        with self._sync_client() as client:
+            return _json_content(client.ask(query, timeout=self.timeout))
+
+    async def _arun(
+        self,
+        query: str,
+        run_manager: AsyncCallbackManagerForToolRun | None = None,
+    ) -> str:
+        del run_manager
+        async with self._async_client() as client:
+            return _json_content(await client.ask(query, timeout=self.timeout))
