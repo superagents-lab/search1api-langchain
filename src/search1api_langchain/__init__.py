@@ -2,6 +2,8 @@
 
 from .toolkit import Search1APIToolkit
 from .tools import (
+    Search1APIAskInput,
+    Search1APIAskTool,
     Search1APICrawlInput,
     Search1APICrawlTool,
     Search1APINewsInput,
@@ -11,6 +13,8 @@ from .tools import (
 )
 
 __all__ = [
+    "Search1APIAskInput",
+    "Search1APIAskTool",
     "Search1APICrawlInput",
     "Search1APICrawlTool",
     "Search1APINewsInput",
@@ -20,4 +24,4 @@ __all__ = [
     "Search1APIToolkit",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

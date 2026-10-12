@@ -23,7 +23,7 @@ export SEARCH1API_API_KEY="your-api-key"
 
 `SEARCH1API_KEY` is also accepted for compatibility with the Search1API CLI.
 Create a key in the
-[Search1API dashboard](https://dashboard.search1api.com).
+[Search1API dashboard](https://app.s1.dev).
 
 ## Use all tools
 
@@ -46,8 +46,9 @@ print(result)
 The toolkit returns:
 
 - `search1api_search` for discovering ranked web sources;
-- `search1api_news` for recent news articles; and
-- `search1api_crawl` for reading a known URL as clean content.
+- `search1api_news` for recent news articles;
+- `search1api_crawl` for reading a known URL as clean content; and
+- `search1api_ask` for automatic source routing and relevance ranking.
 
 Pass the returned list directly to a LangChain agent:
 
@@ -112,7 +113,7 @@ Search1API to read the top result pages and costs one additional credit for each
 successful crawl. The tools therefore default `crawl_results` to `0`.
 
 A Crawl request costs one credit. See
-[Credits and limits](https://www.search1api.com/docs/essentials/credits-and-limits)
+[Credits and limits](https://s1.dev/docs/essentials/credits-and-limits)
 for current details.
 
 ## Development
@@ -131,3 +132,34 @@ python -m build
 ## License
 
 MIT
+
+
+## Current API capabilities
+
+Search supports `bingcn`, `yandex`, and `grokipedia`; the removed `sogou`
+engine is no longer offered. Search and news support `day`, `week`, `month`,
+and `year` time ranges. Search also accepts `page` on engines with native
+pagination.
+
+Agentic Search (`ask`) accepts only a natural-language `query`. The server
+chooses the engines and time window and returns `query`, `intent`, ranked
+`results`, and `errors`. Each Ask result includes its `source` and `relevance`.
+It returns search results, not a generated answer, and costs **5 credits per
+call**. Use regular search when the engine and keywords are already known.
+
+Search/news engine-specific attributes live inside each result's optional
+`metadata`: GitHub uses `kind`, `stars`, `language`, and `num_comments`;
+Hacker News news results use `story_url`, `points`, and `num_comments`.
+`published_date` remains optional at the result top level. Numeric zero counts
+are preserved; unavailable attributes are omitted. When displaying Grokipedia
+results, credit them as "Powered by xAI".
+
+```python
+from search1api_langchain import Search1APIAskTool
+
+result = Search1APIAskTool().invoke({"query": "recent papers on speculative decoding"})
+```
+
+The toolkit includes `search1api_ask` by default. `ask_timeout` defaults to
+45 seconds independently of the other tools' `timeout`. Both synchronous and
+asynchronous invocation are supported. Requires `search1api>=0.4`.
